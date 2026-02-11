@@ -4,6 +4,8 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from config import settings
+from bot.handlers.start import router as start_router
+from bot.handlers.categories import router as categories_router
 
 
 logging.basicConfig(
@@ -18,7 +20,19 @@ async def main():
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
 
-    logger.info("Bot started")
+    # Register routers
+    dp.include_router(start_router)
+    dp.include_router(categories_router)
+
+    try:
+        await bot.send_message(
+            chat_id=settings.admin_id,
+            text="🤖 Bot successfully started!"
+        )
+        logger.info("Bot started, admin notified")
+    except Exception as e:
+        logger.error(f"Failed to notify admin: {e}")
+    
     await dp.start_polling(bot)
 
 
