@@ -7,6 +7,8 @@ class Settings(BaseSettings):
 
     bot_token: str
     api_base_url: str
+    api_key: str
+    admin_id: int
 
     class Config:
         env_file = ".env"
