@@ -50,7 +50,15 @@ async def cmd_start(message: Message):
             last_name=last_name,
         )
         await message.answer(
-            f"Hello, {first_name}! 🎉\nWelcome to Expense Tracker Bot!",
+            f"Hello, {first_name}! 🎉\n\n"
+            "Welcome to Expense Tracker Bot! 💰\n\n"
+            "This bot helps you:\n"
+            "✅ Track your daily expenses\n"
+            "✅ Organize spending by categories\n"
+            "✅ View your expense history\n"
+            "✅ Manage your budget\n\n"
+            "Let's get started! First, create a category to organize your expenses.\n\n"
+            "💡 Examples: Food 🍔, Transport 🚗, Shopping 🛍, Entertainment 🎮",
             reply_markup=get_main_menu()
         )
     
