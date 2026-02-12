@@ -15,4 +15,11 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
 
 
+class BotSettings:
+    """Bot application constants."""
+    CATEGORIES_PER_PAGE: int = 10
+    EXPENSES_PER_PAGE: int = 10
+
+
 settings = Settings()
+bot_settings = BotSettings()
