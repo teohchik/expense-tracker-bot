@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher
 from config import settings
 from bot.handlers.start import router as start_router
 from bot.handlers.categories import router as categories_router
+from bot.handlers.expenses import router as expenses_router
 
 
 logging.basicConfig(
@@ -23,6 +24,7 @@ async def main():
     # Register routers
     dp.include_router(start_router)
     dp.include_router(categories_router)
+    dp.include_router(expenses_router)
 
     try:
         await bot.send_message(
