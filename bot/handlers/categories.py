@@ -4,9 +4,10 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from bot.keyboards.categories import get_categories_menu, get_categories_list, get_category_actions
+from bot.keyboards.categories import get_categories_menu, get_categories_list, get_category_actions, get_empty_categories_keyboard
 from bot.states.category import AddCategoryStates, EditCategoryStates
 from api.client import api_client
+from config import bot_settings
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -15,10 +16,40 @@ logger = logging.getLogger(__name__)
 @router.message(F.text == "📂 Categories")
 async def show_categories_menu(message: Message):
     """Show categories management menu."""
-    await message.answer(
-        "📂 Categories Management\n\nChoose an action:",
-        reply_markup=get_categories_menu()
-    )
+    telegram_id = message.from_user.id
+    
+    # Check if user has any categories
+    response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=1)
+    
+    if response.status_code == 200:
+        categories = response.json()
+    elif response.status_code == 404:
+        categories = []  # No categories yet
+    else:
+        logger.error(f"Failed to get categories: status={response.status_code}, telegram_id={telegram_id}")
+        await message.answer("❌ Error loading categories. Please try again later.")
+        return
+    
+    if categories:
+        # User has categories - show normal menu
+        await message.answer(
+            "📂 Categories Management\n\nChoose an action:",
+            reply_markup=get_categories_menu()
+        )
+    else:
+        # No categories - show welcome message
+        await message.answer(
+            "📂 Welcome to Categories!\n\n"
+            "Categories help you organize and track your expenses by type.\n\n"
+            "Create categories for different types of spending:\n"
+            "🍔 Food - restaurants, groceries\n"
+            "🚗 Transport - gas, taxi, public transport\n"
+            "🛍 Shopping - clothes, electronics\n"
+            "🎮 Entertainment - movies, games, hobbies\n"
+            "🏠 Bills - rent, utilities\n\n"
+            "Let's create your first category!",
+            reply_markup=get_empty_categories_keyboard()
+        )
 
 
 @router.callback_query(F.data == "category_add")
@@ -62,21 +93,32 @@ async def process_category_title(message: Message, state: FSMContext):
 async def show_categories_list(callback: CallbackQuery):
     """Show list of categories for editing."""
     telegram_id = callback.from_user.id
+    per_page = bot_settings.CATEGORIES_PER_PAGE
     
-    response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=6)
+    response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=per_page)
     
     if response.status_code == 200:
         categories = response.json()
-        if categories:
-            await callback.message.edit_text(
-                "📂 Select a category to edit:",
-                reply_markup=get_categories_list(categories, page=1)
-            )
-        else:
-            await callback.message.edit_text("📂 No categories found. Add one first!")
+    elif response.status_code == 404:
+        categories = []  # No categories yet
     else:
         logger.error(f"Failed to get categories: status={response.status_code}, telegram_id={telegram_id}")
         await callback.answer("❌ Error loading categories", show_alert=True)
+        return
+    
+    if categories:
+        await callback.message.edit_text(
+            "📂 Select a category to edit:",
+            reply_markup=get_categories_list(categories, page=1, per_page=per_page)
+        )
+    else:
+        await callback.message.edit_text(
+            "📂 You don't have any categories yet!\n\n"
+            "Categories help you organize your expenses.\n"
+            "Create your first category to get started!\n\n"
+            "💡 Examples: Food, Transport, Shopping, Entertainment",
+            reply_markup=get_empty_categories_keyboard()
+        )
     
     await callback.answer()
 
@@ -86,13 +128,14 @@ async def paginate_categories(callback: CallbackQuery):
     """Handle category pagination."""
     page = int(callback.data.split(":")[1])
     telegram_id = callback.from_user.id
+    per_page = bot_settings.CATEGORIES_PER_PAGE
     
-    response = await api_client.get_categories(telegram_id=telegram_id, page=page, per_page=6)
+    response = await api_client.get_categories(telegram_id=telegram_id, page=page, per_page=per_page)
     
     if response.status_code == 200:
         categories = response.json()
         await callback.message.edit_reply_markup(
-            reply_markup=get_categories_list(categories, page=page)
+            reply_markup=get_categories_list(categories, page=page, per_page=per_page)
         )
     else:
         logger.error(f"Failed to get categories: status={response.status_code}, telegram_id={telegram_id}")
@@ -144,8 +187,18 @@ async def process_rename_category(message: Message, state: FSMContext):
     response = await api_client.update_category(category_id=category_id, title=new_title)
     
     if response.status_code == 200:
+        category_data = response.json()
         logger.info(f"Category renamed successfully: category_id={category_id}, new_title={new_title}")
-        await message.answer(f"✅ Category renamed to '{new_title}' successfully!")
+        
+        # Show updated category data
+        updated_title = category_data.get('title', new_title)
+        category_id_display = category_data.get('id', category_id)
+        
+        message_text = f"✅ Category updated!\n\n"
+        message_text += f"📂 Title: {updated_title}\n"
+        message_text += f"🆔 ID: {category_id_display}"
+        
+        await message.answer(message_text)
         await state.clear()
     elif response.status_code == 404:
         logger.warning(f"Category not found: category_id={category_id}")
