@@ -42,7 +42,7 @@ def get_categories_for_expense(categories: list, page: int = 1, per_page: int = 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-def get_expenses_list(expenses: list, categories_dict: dict, page: int = 1, per_page: int = None) -> InlineKeyboardMarkup:
+def get_expenses_list(expenses: list, categories_dict: dict, page: int = 1, per_page: int = None, currency: str = "€") -> InlineKeyboardMarkup:
     """Get list of expenses with pagination."""
     if per_page is None:
         per_page = bot_settings.EXPENSES_PER_PAGE
@@ -52,7 +52,7 @@ def get_expenses_list(expenses: list, categories_dict: dict, page: int = 1, per_
     for expense in expenses:
         category_name = categories_dict.get(expense['category_id'], 'Unknown')
         description = f" - {expense['description']}" if expense.get('description') else ""
-        text = f"💰 ${expense['amount']:.2f} - {category_name}{description}"
+        text = f"💰 {currency}{expense['amount']:.2f} - {category_name}{description}"
         
         keyboard.append([
             InlineKeyboardButton(

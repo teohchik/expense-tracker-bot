@@ -48,7 +48,7 @@ def calculate_statistics(expenses: list) -> dict:
     }
 
 
-def format_statistics_message(stats: dict, categories_dict: dict, month: int, year: int) -> str:
+def format_statistics_message(stats: dict, categories_dict: dict, month: int, year: int, currency: str = "€") -> str:
     """Format statistics into a beautiful message.
     
     Args:
@@ -56,6 +56,7 @@ def format_statistics_message(stats: dict, categories_dict: dict, month: int, ye
         categories_dict: Dictionary mapping category_id to category name
         month: Month number (1-12)
         year: Year number
+        currency: User's currency symbol
         
     Returns:
         Formatted message string
@@ -66,7 +67,7 @@ def format_statistics_message(stats: dict, categories_dict: dict, month: int, ye
                f"Start tracking your spending!"
     
     message = f"📊 Statistics for {month:02d}/{year}\n\n"
-    message += f"💰 Total: ${stats['total']:.2f}\n"
+    message += f"💰 Total: {currency}{stats['total']:.2f}\n"
     message += f"📝 Number of expenses: {stats['count']}\n"
     
     if stats['by_category']:
@@ -74,7 +75,7 @@ def format_statistics_message(stats: dict, categories_dict: dict, month: int, ye
         for category_id, amount in stats['by_category'].items():
             category_name = categories_dict.get(category_id, 'Unknown')
             percentage = (amount / stats['total']) * 100
-            message += f"├ {category_name}: ${amount:.2f} ({percentage:.1f}%)\n"
+            message += f"├ {category_name}: {currency}{amount:.2f} ({percentage:.1f}%)\n"
     
     return message
 
@@ -88,6 +89,13 @@ async def fetch_and_display_statistics(message_or_callback, telegram_id: int, mo
         month: Month number (1-12)
         year: Year number
     """
+    # Fetch user to get currency
+    user_response = await api_client.get_user(telegram_id)
+    currency = "€"  # Default currency
+    if user_response.status_code == 200:
+        user_data = user_response.json()
+        currency = user_data.get("currency", "€")
+    
     # Fetch all expenses for the period (use large per_page to get all)
     response = await api_client.get_expenses_for_month(
         telegram_id=telegram_id,
@@ -123,7 +131,7 @@ async def fetch_and_display_statistics(message_or_callback, telegram_id: int, mo
     
     # Calculate and format statistics
     stats = calculate_statistics(expenses)
-    message_text = format_statistics_message(stats, categories_dict, month, year)
+    message_text = format_statistics_message(stats, categories_dict, month, year, currency)
     
     if isinstance(message_or_callback, CallbackQuery):
         await message_or_callback.message.answer(message_text)

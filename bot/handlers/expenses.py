@@ -184,6 +184,13 @@ async def create_expense_from_state(message: Message, state: FSMContext, descrip
     
     logger.info(f"Creating expense: telegram_id={telegram_id}, amount={amount}, category_id={category_id}")
     
+    # Get user currency
+    user_response = await api_client.get_user(telegram_id)
+    currency = "€"  # Default currency
+    if user_response.status_code == 200:
+        user_data = user_response.json()
+        currency = user_data.get("currency", "€")
+    
     response = await api_client.create_expense(
         telegram_id=telegram_id,
         category_id=category_id,
@@ -194,7 +201,7 @@ async def create_expense_from_state(message: Message, state: FSMContext, descrip
     if response.status_code == 201:
         expense_data = response.json()
         logger.info(f"Expense created successfully: id={expense_data.get('id')}")
-        await message.answer(f"✅ Expense created!\n\n💰 Amount: ${amount:.2f}")
+        await message.answer(f"✅ Expense created!\n\n💰 Amount: {currency}{amount:.2f}")
         await state.clear()
     else:
         logger.error(f"Failed to create expense: status={response.status_code}")
@@ -218,6 +225,13 @@ async def view_expenses(callback: CallbackQuery):
     year = now.year
     month = now.month
     per_page = bot_settings.EXPENSES_PER_PAGE
+    
+    # Get user currency
+    user_response = await api_client.get_user(telegram_id)
+    currency = "€"  # Default currency
+    if user_response.status_code == 200:
+        user_data = user_response.json()
+        currency = user_data.get("currency", "€")
     
     # Fetch categories first for display
     categories_response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=100)
@@ -246,7 +260,7 @@ async def view_expenses(callback: CallbackQuery):
         if expenses:
             await callback.message.edit_text(
                 f"📊 Expenses for {month}/{year}\n\nSelect an expense to edit:",
-                reply_markup=get_expenses_list(expenses, categories_dict, page=1, per_page=per_page)
+                reply_markup=get_expenses_list(expenses, categories_dict, page=1, per_page=per_page, currency=currency)
             )
         else:
             await callback.message.edit_text(
@@ -271,6 +285,13 @@ async def paginate_expenses(callback: CallbackQuery):
     year = now.year
     month = now.month
     per_page = bot_settings.EXPENSES_PER_PAGE
+    
+    # Get user currency
+    user_response = await api_client.get_user(telegram_id)
+    currency = "€"  # Default currency
+    if user_response.status_code == 200:
+        user_data = user_response.json()
+        currency = user_data.get("currency", "€")
     
     # Fetch categories
     categories_response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=100)
@@ -297,7 +318,7 @@ async def paginate_expenses(callback: CallbackQuery):
     if response.status_code == 200:
         expenses = response.json()
         await callback.message.edit_reply_markup(
-            reply_markup=get_expenses_list(expenses, categories_dict, page=page, per_page=per_page)
+            reply_markup=get_expenses_list(expenses, categories_dict, page=page, per_page=per_page, currency=currency)
         )
     else:
         logger.error(f"Failed to get expenses: status={response.status_code}")
@@ -345,6 +366,14 @@ async def process_new_amount(message: Message, state: FSMContext):
         
         data = await state.get_data()
         expense_id = data.get("expense_id")
+        telegram_id = message.from_user.id
+        
+        # Get user currency
+        user_response = await api_client.get_user(telegram_id)
+        currency = "€"  # Default currency
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            currency = user_data.get("currency", "€")
         
         logger.info(f"Updating expense amount: expense_id={expense_id}, new_amount={amount}")
         
@@ -359,7 +388,7 @@ async def process_new_amount(message: Message, state: FSMContext):
             updated_amount = expense_data.get('amount', amount)
             
             message_text = f"✅ Expense updated!\n\n"
-            message_text += f"💰 Amount: ${updated_amount:.2f}\n"
+            message_text += f"💰 Amount: {currency}{updated_amount:.2f}\n"
             
             # Only show category if available
             if 'category_title' in expense_data and expense_data['category_title']:
@@ -400,6 +429,14 @@ async def process_new_description(message: Message, state: FSMContext):
     
     data = await state.get_data()
     expense_id = data.get("expense_id")
+    telegram_id = message.from_user.id
+    
+    # Get user currency
+    user_response = await api_client.get_user(telegram_id)
+    currency = "€"  # Default currency
+    if user_response.status_code == 200:
+        user_data = user_response.json()
+        currency = user_data.get("currency", "€")
     
     logger.info(f"Updating expense description: expense_id={expense_id}")
     
@@ -414,7 +451,7 @@ async def process_new_description(message: Message, state: FSMContext):
         amount = expense_data.get('amount', 0)
         
         message_text = f"✅ Expense updated!\n\n"
-        message_text += f"💰 Amount: ${amount:.2f}\n"
+        message_text += f"💰 Amount: {currency}{amount:.2f}\n"
         
         # Only show category if available
         if 'category_title' in expense_data and expense_data['category_title']:
