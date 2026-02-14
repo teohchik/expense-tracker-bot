@@ -10,9 +10,17 @@ class Settings(BaseSettings):
     api_key: str
     admin_id: int
 
+    redis_host: str
+    redis_port: int
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.redis_host}:{self.redis_port}"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
 
 
 class BotSettings:
