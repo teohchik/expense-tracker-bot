@@ -30,17 +30,24 @@ class APIClient:
             response.raise_for_status()
             return response.json()
 
-    async def update_user(self, user_id: int, username: str | None,
-                         first_name: str | None, last_name: str | None) -> dict:
+    async def update_user(self, user_id: int, username: str | None = None,
+                         first_name: str | None = None, last_name: str | None = None,
+                         currency: str | None = None) -> dict:
         """Update user information."""
         async with httpx.AsyncClient() as client:
+            update_data = {}
+            if username is not None:
+                update_data["username"] = username
+            if first_name is not None:
+                update_data["first_name"] = first_name
+            if last_name is not None:
+                update_data["last_name"] = last_name
+            if currency is not None:
+                update_data["currency"] = currency
+                
             response = await client.patch(
                 f"{self.base_url}/users/{user_id}",
-                json={
-                    "username": username,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                },
+                json=update_data,
                 headers=self.headers,
             )
             response.raise_for_status()
@@ -195,6 +202,23 @@ class APIClient:
             logger.info(f"Delete expense response: status={response.status_code}, expense_id={expense_id}")
             return response
 
+    async def update_user_currency(self, telegram_id: int, currency: str) -> httpx.Response:
+        """Update user currency."""
+        async with httpx.AsyncClient() as client:
+            user_response = await self.get_user(telegram_id)
+            if user_response.status_code != 200:
+                return user_response
+                
+            user_data = user_response.json()
+            user_id = user_data.get("id")
+            
+            response = await client.patch(
+                f"{self.base_url}/users/{user_id}",
+                json={"currency": currency},
+                headers=self.headers,
+            )
+            logger.info(f"Update user currency response: status={response.status_code}, user_id={user_id}, telegram_id={telegram_id}, currency={currency}")
+            return response
 
 
 api_client = APIClient()
