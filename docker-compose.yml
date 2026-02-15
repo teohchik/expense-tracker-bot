@@ -1,0 +1,51 @@
+services:
+  bot_service:
+    container_name: 'bot_start'
+    build:
+      context: .
+    volumes:
+      - .:/app
+    networks:
+      - botNetwork
+    env_file:
+      - .env
+
+
+  bot_celery_worker_service:
+    container_name: 'bot_celery_worker'
+    build:
+      context: .
+    volumes:
+      - .:/app
+    networks:
+      - botNetwork
+    env_file:
+      - .env
+    command: "celery --app=tasks.celery_app:celery_inst worker -l INFO"
+
+  bot_celery_beat_service:
+    container_name: 'bot_celery_beat'
+    build:
+      context: .
+    volumes:
+      - .:/app
+    networks:
+      - botNetwork
+    env_file:
+      - .env
+    command: "celery --app=tasks.celery_app:celery_inst beat -l INFO"
+
+  bot_cache_service:
+    container_name: 'bot_cache'
+    image: redis:8.4
+    ports:
+      - '7379:6379'
+    networks:
+      - botNetwork
+
+
+
+
+networks:
+  botNetwork:
+    external: true
