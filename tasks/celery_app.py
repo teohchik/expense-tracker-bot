@@ -9,7 +9,7 @@ celery_inst = Celery("tasks", broker=settings.redis_url, include=["tasks.tasks"]
 celery_inst.conf.beat_schedule = {
     "monthly-stats-1st": {
         "task": "monthly_stats",
-        "schedule": crontab(day_of_month=1, hour=9, minute=0),  # 1st day of month at 09:00
+        "schedule": crontab(day_of_month=1, hour=9, minute=0),
     },
     "new-month-reminder-daily": {
         "task": "new_month_reminder",
