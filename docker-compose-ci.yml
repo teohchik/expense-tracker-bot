@@ -1,25 +1,42 @@
-version: "3.9"
-
 services:
   bot_service:
     container_name: bot
     image: bot-image:latest
+    volumes:
+      - .:/app
     networks:
       - myNetwork
+    env_file:
+      - .env
+    restart: unless-stopped
 
   bot_celery_worker_service:
     container_name: bot_celery_worker
     image: bot-image:latest
+    volumes:
+      - .:/app
     networks:
       - myNetwork
+    env_file:
+      - .env
     command: celery --app=tasks.celery_app:celery_inst worker -l INFO
+    restart: unless-stopped
+    depends_on:
+      - bot_service
 
   bot_celery_beat_service:
     container_name: bot_celery_beat
     image: bot-image:latest
+    volumes:
+      - .:/app
     networks:
       - myNetwork
+    env_file:
+      - .env
     command: celery --app=tasks.celery_app:celery_inst beat -l INFO
+    restart: unless-stopped
+    depends_on:
+      - bot_service
 
 networks:
   myNetwork:
