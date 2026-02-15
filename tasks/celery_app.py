@@ -16,15 +16,15 @@ celery_inst.conf.beat_schedule = {
         "schedule": crontab(hour=18, minute=0),  # Every day at 18:00 (checks if last day inside task)
     },
     # TEST TASKS - Uncomment to test functionality
-    "test-monthly-stats": {
-        "task": "monthly_stats",
-        "schedule": crontab(minute="*/2"),  # Every 2 minutes for testing
-    },
-    "test-new-month-reminder": {
-        "task": "new_month_reminder",  # Uses regular task
-        "schedule": crontab(minute="*/3"),  # Every 3 minutes for testing
-        "kwargs": {"force": True}  # Pass force=True to skip date check
-    }
+    # "test-monthly-stats": {
+    #     "task": "monthly_stats",
+    #     "schedule": crontab(minute="*/2"),  # Every 2 minutes for testing
+    # },
+    # "test-new-month-reminder": {
+    #     "task": "new_month_reminder",  # Uses regular task
+    #     "schedule": crontab(minute="*/3"),  # Every 3 minutes for testing
+    #     "kwargs": {"force": True}  # Pass force=True to skip date check
+    # }
 }
 
 celery_inst.conf.timezone = "Europe/Kiev"
