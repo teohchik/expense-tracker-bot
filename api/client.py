@@ -220,5 +220,45 @@ class APIClient:
             logger.info(f"Update user currency response: status={response.status_code}, user_id={user_id}, telegram_id={telegram_id}, currency={currency}")
             return response
 
+    async def get_all_users(self) -> list[dict]:
+        """Get all users from the API with pagination.
+        
+        Returns:
+            List of all user dictionaries
+        """
+        all_users = []
+        page = 1
+        per_page = 100
+        
+        async with httpx.AsyncClient() as client:
+            while True:
+                response = await client.get(
+                    f"{self.base_url}/users/",
+                    params={
+                        "page": page,
+                        "per_page": per_page,
+                    },
+                    headers=self.headers,
+                )
+                
+                if response.status_code != 200:
+                    logger.error(f"Failed to get users: status={response.status_code}, page={page}")
+                    break
+                
+                users = response.json()
+                if not users:
+                    break
+                
+                all_users.extend(users)
+                
+                # If we got fewer users than per_page, we're on the last page
+                if len(users) < per_page:
+                    break
+                
+                page += 1
+        
+        logger.info(f"Retrieved {len(all_users)} total users")
+        return all_users
+
 
 api_client = APIClient()
