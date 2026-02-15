@@ -6,7 +6,7 @@ services:
     volumes:
       - .:/app
     networks:
-      - botNetwork
+      - myNetwork
     env_file:
       - .env
 
@@ -18,7 +18,7 @@ services:
     volumes:
       - .:/app
     networks:
-      - botNetwork
+      - myNetwork
     env_file:
       - .env
     command: "celery --app=tasks.celery_app:celery_inst worker -l INFO"
@@ -30,22 +30,15 @@ services:
     volumes:
       - .:/app
     networks:
-      - botNetwork
+      - myNetwork
     env_file:
       - .env
     command: "celery --app=tasks.celery_app:celery_inst beat -l INFO"
 
-  bot_cache_service:
-    container_name: 'bot_cache'
-    image: redis:8.4
-    ports:
-      - '7379:6379'
-    networks:
-      - botNetwork
 
 
 
 
 networks:
-  botNetwork:
+  myNetwork:
     external: true
