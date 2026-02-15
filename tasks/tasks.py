@@ -215,6 +215,68 @@ async def send_new_month_reminder_to_all_users(force: bool = False):
         await bot.session.close()
 
 
+async def send_broadcast_to_all_users(message_text: str, admin_id: int):
+    """Send broadcast message to all users and report statistics to admin.
+    
+    Args:
+        message_text: Message to broadcast
+        admin_id: Admin user ID to send report to
+    """
+    bot = Bot(token=settings.bot_token)
+    start_time = datetime.now()
+    
+    try:
+        # Get all users
+        users = await api_client.get_all_users()
+        total_users = len(users)
+        logger.info(f"Starting broadcast to {total_users} users")
+        
+        success_count = 0
+        error_count = 0
+        error_details = []
+        
+        for user in users:
+            try:
+                telegram_id = user['telegram_id']
+                await bot.send_message(chat_id=telegram_id, text=message_text)
+                success_count += 1
+                logger.info(f"Broadcast sent to user {telegram_id}")
+                
+            except Exception as e:
+                error_count += 1
+                error_msg = str(e)
+                error_details.append(f"User {user.get('telegram_id', 'unknown')}: {error_msg}")
+                logger.error(f"Failed to send broadcast to user {user.get('telegram_id', 'unknown')}: {e}")
+        
+        # Calculate duration
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        # Send report to admin
+        report = (
+            f"📊 Broadcast Report\n\n"
+            f"✅ Successfully sent: {success_count}\n"
+            f"❌ Failed: {error_count}\n"
+            f"👥 Total users: {total_users}\n"
+            f"⏱ Duration: {duration:.2f} seconds\n"
+        )
+        
+        if error_count > 0 and error_count <= 5:
+            report += f"\n🔴 Errors:\n"
+            for error in error_details[:5]:
+                report += f"• {error}\n"
+        elif error_count > 5:
+            report += f"\n🔴 {error_count} errors occurred (showing first 5):\n"
+            for error in error_details[:5]:
+                report += f"• {error}\n"
+        
+        await bot.send_message(chat_id=admin_id, text=report)
+        logger.info(f"Broadcast completed: {success_count} successful, {error_count} errors, {duration:.2f}s")
+        
+    finally:
+        await bot.session.close()
+
+
 # Celery tasks
 @celery_inst.task(name="monthly_stats")
 def monthly_stats_task():
@@ -232,3 +294,15 @@ def new_month_reminder_task(force: bool = False):
     """
     logger.info("Starting new month reminder task")
     return run_async(send_new_month_reminder_to_all_users(force=force))
+
+
+@celery_inst.task(name="broadcast")
+def broadcast_task(message_text: str, admin_id: int):
+    """Broadcast message to all users.
+    
+    Args:
+        message_text: Message to broadcast
+        admin_id: Admin user ID to send report to
+    """
+    logger.info(f"Starting broadcast task for admin {admin_id}")
+    return run_async(send_broadcast_to_all_users(message_text, admin_id))

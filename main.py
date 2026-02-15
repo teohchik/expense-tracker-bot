@@ -10,6 +10,7 @@ from bot.handlers.categories import router as categories_router
 from bot.handlers.expenses import router as expenses_router
 from bot.handlers.statistics import router as statistics_router
 from bot.handlers.profile import router as profile_router
+from bot.handlers.admin import router as admin_router
 
 
 logging.basicConfig(
@@ -28,6 +29,7 @@ async def main():
     dp = Dispatcher(storage=storage)
 
     # Register routers
+    dp.include_router(admin_router)
     dp.include_router(start_router)
     dp.include_router(categories_router)
     dp.include_router(expenses_router)
