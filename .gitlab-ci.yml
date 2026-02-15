@@ -1,0 +1,16 @@
+stages:
+  - build
+  - deploy
+
+build-job:
+  stage: build
+  before_script:
+    - cp ${ENV} .env
+  script:
+    - docker build -t bot-image .
+
+
+deploy-job:
+  stage: deploy
+  script:
+    - docker compose -f docker-compose-ci.yml up -d
