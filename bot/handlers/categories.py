@@ -192,12 +192,10 @@ async def process_rename_category(message: Message, state: FSMContext):
         
         # Show updated category data
         updated_title = category_data.get('title', new_title)
-        category_id_display = category_data.get('id', category_id)
-        
+
         message_text = f"✅ Category updated!\n\n"
         message_text += f"📂 Title: {updated_title}\n"
-        message_text += f"🆔 ID: {category_id_display}"
-        
+
         await message.answer(message_text)
         await state.clear()
     elif response.status_code == 404:
