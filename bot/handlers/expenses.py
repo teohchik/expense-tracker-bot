@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 from aiogram import Router, F
+from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
@@ -493,3 +494,44 @@ async def back_to_expense_menu(callback: CallbackQuery):
         reply_markup=get_add_expense_menu()
     )
     await callback.answer()
+
+
+@router.message(StateFilter(None), F.text.regexp(r'^\d+([.,]\d+)?$'))
+async def quick_add_expense(message: Message, state: FSMContext):
+    """Handle plain number input and jump straight to category selection."""
+    try:
+        amount = float(message.text.strip().replace(',', '.'))
+    except ValueError:
+        return
+
+    if amount <= 0 or amount > 1_000_000:
+        return
+
+    await state.update_data(amount=amount)
+    telegram_id = message.from_user.id
+    per_page = bot_settings.CATEGORIES_PER_PAGE
+
+    response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=per_page)
+
+    if response.status_code == 200:
+        categories = response.json()
+    elif response.status_code == 404:
+        categories = []
+    else:
+        logger.error(f"Quick add: failed to get categories: status={response.status_code}")
+        await message.answer("❌ Error loading categories. Please try again later.")
+        await state.clear()
+        return
+
+    if categories:
+        await message.answer(
+            f"💵 Amount: {amount:.2f}\n\n📂 Select a category:",
+            reply_markup=get_categories_for_expense(categories, page=1, per_page=per_page)
+        )
+        await state.set_state(AddExpenseStates.waiting_for_category)
+    else:
+        await message.answer(
+            "📂 You need categories first!\n\n"
+            "Create your first category to start tracking expenses.",
+            reply_markup=get_no_categories_keyboard()
+        )
