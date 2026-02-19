@@ -99,6 +99,7 @@ async def process_expense_amount(message: Message, state: FSMContext):
             return
         
         if categories:
+            await state.update_data(categories_cache={str(c['id']): c['title'] for c in categories})
             await message.answer(
                 "📂 Select a category:",
                 reply_markup=get_categories_for_expense(categories, page=1, per_page=per_page)
@@ -121,7 +122,9 @@ async def process_expense_amount(message: Message, state: FSMContext):
 async def process_expense_category(callback: CallbackQuery, state: FSMContext):
     """Process category selection."""
     category_id = int(callback.data.split(":")[1])
-    await state.update_data(category_id=category_id)
+    data = await state.get_data()
+    category_title = data.get("categories_cache", {}).get(str(category_id), "")
+    await state.update_data(category_id=category_id, category_title=category_title)
     
     await callback.message.answer(
         "📝 Enter description (optional):\n\nSend /skip to skip description."
@@ -149,9 +152,14 @@ async def paginate_expense_categories(callback: CallbackQuery, state: FSMContext
         return
     
     if categories:
-        await callback.message.edit_reply_markup(
-            reply_markup=get_categories_for_expense(categories, page=page, per_page=per_page)
-        )
+            await callback.message.edit_reply_markup(
+                reply_markup=get_categories_for_expense(categories, page=page, per_page=per_page)
+            )
+            # Merge newly loaded page into cache
+            data = await state.get_data()
+            cache = data.get("categories_cache", {})
+            cache.update({str(c['id']): c['title'] for c in categories})
+            await state.update_data(categories_cache=cache)
     else:
         await callback.answer("No more categories", show_alert=True)
     
@@ -181,6 +189,7 @@ async def create_expense_from_state(message: Message, state: FSMContext, descrip
     data = await state.get_data()
     amount = data.get("amount")
     category_id = data.get("category_id")
+    category_title = data.get("category_title", "")
     telegram_id = message.from_user.id
     
     logger.info(f"Creating expense: telegram_id={telegram_id}, amount={amount}, category_id={category_id}")
@@ -202,7 +211,10 @@ async def create_expense_from_state(message: Message, state: FSMContext, descrip
     if response.status_code == 201:
         expense_data = response.json()
         logger.info(f"Expense created successfully: id={expense_data.get('id')}")
-        await message.answer(f"✅ Expense created!\n\n💰 Amount: {currency}{amount:.2f}")
+        text = f"✅ Expense created!\n\n💰 Amount: {currency}{amount:.2f}"
+        if category_title:
+            text += f"\n📂 Category: {category_title}"
+        await message.answer(text)
         await state.clear()
     else:
         logger.error(f"Failed to create expense: status={response.status_code}")
@@ -524,6 +536,7 @@ async def quick_add_expense(message: Message, state: FSMContext):
         return
 
     if categories:
+        await state.update_data(categories_cache={str(c['id']): c['title'] for c in categories})
         await message.answer(
             f"💵 Amount: {amount:.2f}\n\n📂 Select a category:",
             reply_markup=get_categories_for_expense(categories, page=1, per_page=per_page)
