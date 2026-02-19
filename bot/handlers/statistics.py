@@ -48,7 +48,7 @@ def calculate_statistics(expenses: list) -> dict:
     }
 
 
-def format_statistics_message(stats: dict, categories_dict: dict, month: int, year: int, currency: str = "€") -> str:
+def format_statistics_message(stats: dict, categories_dict: dict, month: int, year: int, currency: str = "€", salary_total: float = 0.0) -> str:
     """Format statistics into a beautiful message.
     
     Args:
@@ -57,20 +57,36 @@ def format_statistics_message(stats: dict, categories_dict: dict, month: int, ye
         month: Month number (1-12)
         year: Year number
         currency: User's currency symbol
+        salary_total: Total salary for the period
         
     Returns:
         Formatted message string
     """
-    if stats["total"] == 0:
+    has_expenses = stats["total"] > 0
+    has_salary = salary_total > 0
+
+    if not has_expenses and not has_salary:
         return f"📊 Statistics for {month:02d}/{year}\n\n" \
-               f"💭 No expenses found for this period.\n" \
+               f"💭 No data found for this period.\n" \
                f"Start tracking your spending!"
     
     message = f"📊 Statistics for {month:02d}/{year}\n\n"
-    message += f"💰 Total: {currency}{stats['total']:.2f}\n"
-    message += f"📝 Number of expenses: {stats['count']}\n"
+
+    if has_salary:
+        message += f"💼 Salary: {currency}{salary_total:.2f}\n"
+
+    if has_expenses:
+        message += f"💸 Expenses: {currency}{stats['total']:.2f}\n"
+        message += f"📝 Transactions: {stats['count']}\n"
+
+    if has_salary or has_expenses:
+        balance = salary_total - stats["total"]
+        if balance >= 0:
+            message += f"\n🟢 Balance: +{currency}{balance:.2f}\n"
+        else:
+            message += f"\n🔴 Balance: -{currency}{abs(balance):.2f}\n"
     
-    if stats['by_category']:
+    if has_expenses and stats['by_category']:
         message += f"\n📂 By Category:\n"
         for category_id, amount in stats['by_category'].items():
             category_name = categories_dict.get(category_id, 'Unknown')
@@ -115,6 +131,17 @@ async def fetch_and_display_statistics(message_or_callback, telegram_id: int, mo
         return
     
     expenses = response.json() if response.status_code == 200 else []
+
+    # Fetch all salaries for the period
+    salary_response = await api_client.get_salaries_for_month(
+        telegram_id=telegram_id,
+        year=year,
+        month=month,
+        page=1,
+        per_page=1000,
+    )
+    salaries = salary_response.json() if salary_response.status_code == 200 else []
+    salary_total = sum(s['amount'] for s in salaries)
     
     # Fetch categories for display
     categories_response = await api_client.get_categories(telegram_id=telegram_id, page=1, per_page=100)
@@ -131,7 +158,7 @@ async def fetch_and_display_statistics(message_or_callback, telegram_id: int, mo
     
     # Calculate and format statistics
     stats = calculate_statistics(expenses)
-    message_text = format_statistics_message(stats, categories_dict, month, year, currency)
+    message_text = format_statistics_message(stats, categories_dict, month, year, currency, salary_total)
     
     if isinstance(message_or_callback, CallbackQuery):
         await message_or_callback.message.answer(message_text)

@@ -13,6 +13,9 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📂 Categories"),
             KeyboardButton(text="👤 Profile"),
         ],
+        [
+            KeyboardButton(text="💰 Salary"),
+        ],
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
