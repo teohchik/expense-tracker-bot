@@ -11,6 +11,7 @@ from bot.handlers.expenses import router as expenses_router
 from bot.handlers.statistics import router as statistics_router
 from bot.handlers.profile import router as profile_router
 from bot.handlers.admin import router as admin_router
+from bot.handlers.salary import router as salary_router
 
 
 logging.basicConfig(
@@ -35,6 +36,7 @@ async def main():
     dp.include_router(expenses_router)
     dp.include_router(statistics_router)
     dp.include_router(profile_router)
+    dp.include_router(salary_router)
 
     try:
         await bot.send_message(

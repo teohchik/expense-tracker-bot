@@ -220,6 +220,72 @@ class APIClient:
             logger.info(f"Update user currency response: status={response.status_code}, user_id={user_id}, telegram_id={telegram_id}, currency={currency}")
             return response
 
+    async def create_salary(self, telegram_id: int, amount: float, description: str = None) -> httpx.Response:
+        """Create a new salary entry."""
+        async with httpx.AsyncClient() as client:
+            user_response = await self.get_user(telegram_id)
+            user_data = user_response.json()
+            user_id = user_data.get("id")
+
+            salary_data: dict = {"user_id": user_id, "amount": amount}
+            if description is not None:
+                salary_data["description"] = description
+
+            response = await client.post(
+                f"{self.base_url}/salaries/",
+                json=salary_data,
+                headers=self.headers,
+            )
+            logger.info(f"Create salary response: status={response.status_code}, user_id={user_id}, amount={amount}")
+            return response
+
+    async def get_salaries_for_month(self, telegram_id: int, year: int, month: int, page: int = 1, per_page: int = None) -> httpx.Response:
+        """Get salaries for specific month with pagination."""
+        if per_page is None:
+            per_page = bot_settings.EXPENSES_PER_PAGE
+
+        async with httpx.AsyncClient() as client:
+            user_response = await self.get_user(telegram_id)
+            user_data = user_response.json()
+            user_id = user_data.get("id")
+
+            response = await client.get(
+                f"{self.base_url}/salaries/user/{user_id}",
+                params={"year": year, "month": month, "page": page, "per_page": per_page},
+                headers=self.headers,
+            )
+            logger.info(f"Get salaries response: status={response.status_code}, user_id={user_id}, year={year}, month={month}")
+            return response
+
+    async def update_salary(self, salary_id: int, amount: float = None, description: str = None) -> httpx.Response:
+        """Update salary amount and/or description."""
+        async with httpx.AsyncClient() as client:
+            update_data = {}
+            if amount is not None:
+                update_data["amount"] = amount
+            if description is not None:
+                update_data["description"] = description
+
+            response = await client.patch(
+                f"{self.base_url}/salaries/",
+                params={"salary_id": salary_id},
+                json=update_data,
+                headers=self.headers,
+            )
+            logger.info(f"Update salary response: status={response.status_code}, salary_id={salary_id}")
+            return response
+
+    async def delete_salary(self, salary_id: int) -> httpx.Response:
+        """Delete salary."""
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"{self.base_url}/salaries/",
+                params={"salary_id": salary_id},
+                headers=self.headers,
+            )
+            logger.info(f"Delete salary response: status={response.status_code}, salary_id={salary_id}")
+            return response
+
     async def get_all_users(self) -> list[dict]:
         """Get all users from the API with pagination.
         
